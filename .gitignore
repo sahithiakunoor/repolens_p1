@@ -1,0 +1,32 @@
+# Environment variables
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# Test results & coverage
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ChromaDB local data
+chroma_db/
+*.sqlite3
+
+# IDEs
+.vscode/
+.idea/
+
+# Misc
+*.log
