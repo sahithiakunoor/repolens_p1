@@ -192,3 +192,47 @@ def test_retrieve_combines_dense_sparse_rrf_and_rerank(mock_indexer, retriever):
     assert len(result) == 2
     returned_ids = {r.chunk.chunk_id for r in result}
     assert returned_ids == {"a", "b"}
+
+
+# ── Source file bias ───────────────────────────────────────────────────────────
+
+from repolens.retrieval.retriever import _test_file_penalty
+
+
+def test_test_file_gets_penalty():
+    chunk = make_chunk("a")
+    chunk.file_path = "tests/test_routing.py"
+    assert _test_file_penalty(chunk) == 1.5
+
+
+def test_source_file_gets_no_penalty():
+    chunk = make_chunk("a")
+    chunk.file_path = "src/routing.py"
+    assert _test_file_penalty(chunk) == 0.0
+
+
+def test_rerank_source_file_outranks_test_file_with_equal_scores(retriever):
+    source = make_chunk("source", name="real_func")
+    source.file_path = "src/app.py"
+    test = make_chunk("test", name="test_func")
+    test.file_path = "tests/test_app.py"
+
+    # Cross-encoder gives both the same raw score — bias should push source up
+    retriever.reranker.predict.return_value = [0.5, 0.5]
+
+    result = retriever._rerank("how does routing work?", [source, test], top_n=2)
+    assert result[0].chunk.chunk_id == "source"
+    assert result[1].chunk.chunk_id == "test"
+
+
+def test_rerank_test_file_still_wins_if_score_much_higher(retriever):
+    source = make_chunk("source", name="real_func")
+    source.file_path = "src/app.py"
+    test = make_chunk("test", name="test_func")
+    test.file_path = "tests/test_app.py"
+
+    # Test file score is 3.0 higher than source — penalty is only 1.5, so test wins
+    retriever.reranker.predict.return_value = [0.0, 3.0]
+
+    result = retriever._rerank("show me an example", [source, test], top_n=2)
+    assert result[0].chunk.chunk_id == "test"

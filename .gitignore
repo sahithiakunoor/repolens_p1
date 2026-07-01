@@ -30,3 +30,5 @@ chroma_db/
 
 # Misc
 *.log
+.repolens_index/
+.repolens_repos/

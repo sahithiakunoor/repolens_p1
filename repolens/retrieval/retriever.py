@@ -131,11 +131,22 @@ class HybridRetriever:
         pairs = [(query, _contextualize_for_rerank(chunk)) for chunk in candidates]
         scores = self.reranker.predict(pairs)
 
-        scored = list(zip(candidates, scores))
+        # Apply source file bias: penalize test/fixture/doc files so that
+        # source code ranks above test code when scores are close.
+        # The penalty is subtracted from the raw cross-encoder logit score.
+        # We use a modest penalty (1.5) so a clearly better test file can
+        # still outrank a weakly relevant source file — this is a tie-breaker,
+        # not a hard filter.
+        adjusted_scores = [
+            float(score) - _test_file_penalty(chunk)
+            for chunk, score in zip(candidates, scores)
+        ]
+
+        scored = list(zip(candidates, adjusted_scores))
         scored.sort(key=lambda pair: pair[1], reverse=True)
 
         return [
-            RetrievedChunk(chunk=chunk, score=float(score))
+            RetrievedChunk(chunk=chunk, score=round(score, 4))
             for chunk, score in scored[:top_n]
         ]
 
@@ -169,3 +180,33 @@ def _contextualize_for_rerank(chunk: CodeChunk) -> str:
         parts.append(chunk.docstring)
     parts.append(chunk.content)
     return "\n".join(parts)
+
+
+# Test/fixture/doc paths that should rank below source files when scores are close.
+_NON_SOURCE_PATTERNS = (
+    "/tests/",
+    "/test_",
+    "test_",
+    "/docs/",
+    "/examples/",
+    "/fixtures/",
+    "/benchmarks/",
+)
+
+_TEST_FILE_PENALTY = 1.5   # subtracted from cross-encoder logit score
+
+
+def _test_file_penalty(chunk: CodeChunk) -> float:
+    """
+    Return a score penalty for chunks from test/doc/example files.
+    Source files get 0 penalty. Test/fixture/doc files get _TEST_FILE_PENALTY.
+
+    This is a soft bias, not a hard filter — a test file that's genuinely
+    the best match for a query (e.g. "show me an example of X") can still
+    outrank a weakly relevant source file if its cross-encoder score is
+    more than _TEST_FILE_PENALTY points higher.
+    """
+    path = chunk.file_path.lower()
+    if any(pattern in path for pattern in _NON_SOURCE_PATTERNS):
+        return _TEST_FILE_PENALTY
+    return 0.0

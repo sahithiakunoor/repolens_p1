@@ -41,6 +41,8 @@ from repolens.ingestion.loader import load_repo
 from repolens.llm import llm
 from repolens.models import QueryIntent
 
+import math
+def _sigmoid(x): return 1 / (1 + math.exp(-x))
 
 # ── In-memory state ───────────────────────────────────────────────────────────
 # Maps repo_url → Generator (which wraps the Indexer + HybridRetriever)
@@ -55,7 +57,39 @@ _index_jobs: dict[str, dict] = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings.validate()
+    _load_persisted_indexes()
     yield
+
+
+def _load_persisted_indexes():
+    """
+    On startup, scan the index directory for previously indexed repos and
+    load them back into _generators so they're immediately queryable without
+    re-indexing.
+
+    Each subdirectory under settings.index_dir is named 'org__repo'
+    (from _repo_slug). We reverse that slug back to a GitHub URL and
+    instantiate a Generator pointing at the persisted ChromaDB data.
+    """
+    index_dir = settings.index_dir
+    if not index_dir.exists():
+        return
+
+    for repo_dir in index_dir.iterdir():
+        if not repo_dir.is_dir():
+            continue
+        try:
+            # Reverse 'org__repo' → 'https://github.com/org/repo'
+            parts = repo_dir.name.split("__")
+            if len(parts) != 2:
+                continue
+            repo_url = f"https://github.com/{parts[0]}/{parts[1]}"
+
+            indexer = Indexer(persist_dir=str(repo_dir))
+            _generators[repo_url] = Generator(indexer=indexer)
+            print(f"✅ Loaded persisted index: {repo_url}")
+        except Exception as e:
+            print(f"⚠️  Could not load index from {repo_dir.name}: {e}")
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -227,7 +261,7 @@ def query_repo(request: QueryRequest):
                 start_line=rc.chunk.start_line,
                 end_line=rc.chunk.end_line,
                 github_url=rc.chunk.github_url,
-                score=round(rc.score, 4),
+                score=round(float(rc.score), 4),
             )
             for rc in response.citations
         ],
