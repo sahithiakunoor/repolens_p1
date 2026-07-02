@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "repolens"
@@ -17,8 +17,56 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
+dependencies = [
+    # ── LLM & embeddings ──────────────────────────────────────────────────────
+    "httpx>=0.27",                        # HTTP client for all LLM provider calls
+    "sentence-transformers>=3.0",         # embeddings + cross-encoder reranking
+    "openai>=1.0",                        # optional: OpenAI provider support
+
+    # ── Vector store ──────────────────────────────────────────────────────────
+    "chromadb>=0.5",                      # local embedded vector DB
+
+    # ── Sparse retrieval ──────────────────────────────────────────────────────
+    "rank-bm25>=0.2",                     # BM25 keyword index
+
+    # ── AST parsing (code chunking) ───────────────────────────────────────────
+    "tree-sitter>=0.21",                  # language-agnostic AST parser
+    "tree-sitter-python>=0.21",
+    "tree-sitter-javascript>=0.21",
+    "tree-sitter-typescript>=0.21",
+    "tree-sitter-java>=0.21",
+    "tree-sitter-go>=0.21",
+    "tree-sitter-ruby>=0.21",
+    "tree-sitter-rust>=0.21",
+    "tree-sitter-cpp>=0.21",
+    "tree-sitter-c>=0.21",
+
+    # ── Repo ingestion ────────────────────────────────────────────────────────
+    "gitpython>=3.1",                     # shallow-clone GitHub repos
+    "tqdm>=4.66",                         # progress bars during ingestion
+
+    # ── API server ────────────────────────────────────────────────────────────
+    "fastapi>=0.111",                     # REST API framework
+    "uvicorn[standard]>=0.29",            # ASGI server
+
+    # ── Config & logging ──────────────────────────────────────────────────────
+    "python-dotenv>=1.0",                 # .env file loading
+    "loguru>=0.7",                        # structured logging
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+    "black>=24.0",
+    "mypy>=1.9",
+    "ragas>=0.1",                         # evaluation harness (planned phase)
+]
+
 [project.scripts]
 repolens-ingest  = "repolens.scripts.ingest:main"
+repolens-query   = "repolens.scripts.query:main"
 repolens-serve   = "repolens.scripts.serve:main"
 
 [tool.setuptools.packages.find]

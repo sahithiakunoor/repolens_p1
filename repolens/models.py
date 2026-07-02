@@ -37,7 +37,7 @@ class CodeChunk:
     end_line: int
     docstring: str          # extracted docstring / JSDoc
     parent_class: str       # class name if this is a method
-    imports: list           # top-level imports from the file
+    imports: list[str]      # top-level imports from the file
     repo_url: str           # base GitHub URL for building line links
     github_url: str         # direct link to exact line in GitHub
 
@@ -51,6 +51,6 @@ class RetrievedChunk:
 @dataclass
 class RAGResponse:
     answer: str
-    citations: list         # list of RetrievedChunk
+    citations: list[RetrievedChunk]
     intent: QueryIntent
     latency_ms: int

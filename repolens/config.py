@@ -53,16 +53,27 @@ class Settings:
     # Free, runs locally via sentence-transformers
     embed_model: str = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")
 
+    # How many chunks to embed in one batch (controls memory vs. speed tradeoff)
+    embed_batch_size: int = int(os.getenv("EMBED_BATCH_SIZE", 64))
+
     # ── Reranker ──────────────────────────────────────────────────────────────
     # Free cross-encoder, runs locally
-    rerank_model: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
+    rerank_model: str = os.getenv("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L6-v2")
+
+    # Score penalty applied to test/doc/fixture files during reranking.
+    # Soft bias — a genuinely better test file can still win if its
+    # cross-encoder score exceeds a source file by more than this margin.
+    test_file_penalty: float = float(os.getenv("TEST_FILE_PENALTY", 1.5))
 
     # ── Paths ─────────────────────────────────────────────────────────────────
     index_dir: Path = Path(os.getenv("INDEX_DIR", ".repolens_index"))
     clone_dir: Path = Path(os.getenv("CLONE_DIR", ".repolens_repos"))
 
     # ── Ingestion ─────────────────────────────────────────────────────────────
-    max_file_bytes: int = int(os.getenv("MAX_FILE_BYTES", 200_000))
+    max_file_bytes:      int = int(os.getenv("MAX_FILE_BYTES", 200_000))
+    # Metadata size caps — ChromaDB stores metadata as strings; keep them bounded
+    max_imports:         int = int(os.getenv("MAX_IMPORTS", 10))
+    max_docstring_chars: int = int(os.getenv("MAX_DOCSTRING_CHARS", 500))
 
     # ── Retrieval ─────────────────────────────────────────────────────────────
     retrieval_top_k: int = int(os.getenv("RETRIEVAL_TOP_K", 20))

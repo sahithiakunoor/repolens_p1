@@ -1,0 +1,103 @@
+{
+  "repo_url": "https://github.com/tiangolo/fastapi",
+  "timestamp": "2026-07-01T13:48:05.088931+00:00",
+  "num_questions": 5,
+  "num_errors": 0,
+  "mean_faithfulness": 0.58,
+  "mean_answer_relevancy": 0.9,
+  "mean_context_precision": 0.08,
+  "mean_latency_ms": 8406.2,
+  "intent_accuracy": 1,
+  "samples": [
+    {
+      "question": "how does dependency injection work?",
+      "intent": "explain",
+      "answer": "Dependency injection in FastAPI is a powerful mechanism that allows you to manage dependencies in your application, such as authentication, database connections, or configuration settings. It helps to decouple components and makes your code more modular and testable.\n\n### High Level Overview\nAt a high level, dependency injection in FastAPI works by:\n1. Declaring dependencies using the `Depends` function.\n2. FastAPI automatically resolves these dependencies when a request is made.\n3. The resolved dependencies are injected into the path operation function or other dependencies.\n\n### Key Implementation Details\n\n#### 1. Declaring Dependencies\nDependencies are declared using the `Depends` function. This function takes a callable (like a function) and returns a dependency that FastAPI can resolve.\n\n```python\ndef Depends(  # noqa: N802\n    dependency: Annotated[\n        Callable[..., Any] | None,\n        Doc(\n            \"\"\"\n            A \"dependable\" callable (like a function).\n\n            Don't call it directly, FastAPI will call it for you, just pass the object\n            directly.\n\n            Read more about it in the\n            [FastAPI docs for Dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/)\n            \"\"\"\n        ),\n    ] = None,\n    *,\n    use_cache: Annotated[\n        bool,\n        Doc(\n            \"\"\"\n            By default, after a dependency is called the first time in a request, if\n            the dependency is declared again for the rest of the request (for example\n            if the dependency is needed by several dependencies), the value will be\n            re-used for the rest of the request.\n\n            Set `use_cache` to `False` to disable this behavior and ensure the\n            dependency is called again (if declared more than once) in the same request.\n\n            Read more about it in the\n            [FastAPI docs about sub-dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/sub-dependencies/#using-the-same-dependency-multiple-times)\n            \"\"\"\n        ),\n    ] = True,\n    scope: Annotated[\n        Literal[\"function\", \"request\"] | None,\n        Doc(\n            \"\"\"\n            Mainly for dependencies with `yield`, define when the dependency function\n            should start (the code before `yield`) and when it should end (the code\n            after `yield`).\n\n            * `\"function\"`: start the dependency before the *path operation function*\n                that handles the request, end the dependency after the *path operation\n                function* ends, but **before** the response is sent back to the client.\n                So, the dependency function will be executed **around** the *path operation\n                **function***.\n            * `\"request\"`: start the dependency before the *path operation function*\n                that handles the request (similar to when using `\"function\"`), but end\n                **after** the response is sent back to the client. So, the dependency\n                function will be executed **around** the **request** and response cycle.\n\n            Read more about it in the\n            [FastAPI docs for FastAPI Dependencies with yield](https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/#early-exit-and-scope)\n            \"\"\"\n        ),\n    ] = None,\n) -> Any:\n    \"\"\"\n    Declare a FastAPI dependency.\n\n    It takes a single \"dependable\" callable (like a function).\n\n    Don't call it directly, FastAPI will call it for you.\n\n    Read more about it in the\n    [FastAPI docs for Dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/).\n\n    **Example**\n\n    ```python\n    from typing import Annotated\n\n    from fastapi import Depends, FastAPI\n\n    app = FastAPI()\n\n\n    async def common_parameters(q: str | None = None, skip: int = 0, limit: int = 100):\n        return {\"q\": q, \"skip\": skip, \"limit\": limit}\n\n\n    @app.get(\"/items/\")\n    async def read_items(commons: Annotated[dict, Depends(common_parameters)]):\n        return commons\n    ```\n    \"\"\"\n    return params.Depends(dependency=dependency, use_cache=use_cache, scope=scope)\n```\n[fastapi/param_functions.py:2283-2369](https://github.com/tiangolo/fastapi/blob/main/fastapi/param_functions.py#L2283)\n\n#### 2. Resolving Dependencies\nWhen a request is made, FastAPI resolves the dependencies by calling the callable provided to `Depends`. The result of this callable is then injected into the path operation function or other dependencies.\n\nFor example, in the `APIKeyHeader` class, the `__call__` method extracts the API key from the request headers",
+      "context_chunks": [
+        "fastapi/security/api_key.py:235-320",
+        "fastapi/security/api_key.py:147-232",
+        "fastapi/security/api_key.py:55-144",
+        "tests/test_response_dependency.py:54-68",
+        "fastapi/param_functions.py:2283-2369"
+      ],
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.5,
+      "context_precision": 0.0,
+      "latency_ms": 17353,
+      "intent_correct": true,
+      "error": null
+    },
+    {
+      "question": "where is the routing logic defined?",
+      "intent": "find",
+      "answer": "The routing logic is defined in the `fastapi/applications.py` file, specifically in the `FastAPI.include_router` method. This method is responsible for including an `APIRouter` in the same app, allowing for the organization of routes into separate routers and then including them in the main application.\n\n[fastapi/applications.py:1435-1638](https://github.com/tiangolo/fastapi/blob/main/fastapi/applications.py#L1435)",
+      "context_chunks": [
+        "fastapi/sse.py:20-33",
+        "fastapi/applications.py:1435-1638",
+        "fastapi/openapi/utils.py:481-486",
+        "fastapi/applications.py:1070-1103",
+        "fastapi/security/oauth2.py:162-327"
+      ],
+      "faithfulness": 0.4,
+      "answer_relevancy": 1.0,
+      "context_precision": 0.0,
+      "latency_ms": 2866,
+      "intent_correct": true,
+      "error": null
+    },
+    {
+      "question": "difference between APIRouter and FastAPI class?",
+      "intent": "compare",
+      "answer": "The `APIRouter` and `FastAPI` classes in FastAPI serve similar purposes but have key differences in behavior, interface, and use cases.\n\n### What Each One Does\n\n- **FastAPI**: The `FastAPI` class is the main entry point for creating a FastAPI application. It inherits from Starlette and provides additional functionality specific to FastAPI, such as automatic API documentation, OpenAPI schema generation, and path operation decorators like `@app.get()`, `@app.post()`, etc. [fastapi/applications.py:42-4768](https://github.com/tiangolo/fastapi/blob/main/fastapi/applications.py#L42)\n\n- **APIRouter**: The `APIRouter` class is used to group path operations together. It is designed to be included in a FastAPI application using the `include_router` method. It allows you to organize your application into smaller, modular components. [fastapi/applications.py:1435-1638](https://github.com/tiangolo/fastapi/blob/main/fastapi/applications.py#L1435)\n\n### Key Differences in Behavior, Interface, or Use Case\n\n- **Interface**:\n  - **FastAPI**: Provides a comprehensive interface for creating a web application, including methods for adding routes, middleware, exception handlers, and more. It also includes methods for generating OpenAPI schemas and serving API documentation.\n  - **APIRouter**: Provides a subset of the functionality of FastAPI, focusing on grouping path operations. It does not include methods for adding middleware, exception handlers, or generating OpenAPI schemas. Instead, these are handled by the FastAPI application that includes the router.\n\n- **Use Case**:\n  - **FastAPI**: Used to create the main application instance. It is the top-level container for your application and provides the core functionality for handling HTTP requests and generating API documentation.\n  - **APIRouter**: Used to group related path operations together. It is useful for organizing your application into smaller, more manageable components. For example, you might create separate routers for different parts of your application, such as users, items, and orders.\n\n### When You Would Use One Over the Other\n\n- **Use FastAPI** when you need to create the main application instance and want to take advantage of FastAPI's features such as automatic API documentation, OpenAPI schema generation, and path operation decorators.\n\n- **Use APIRouter** when you want to organize your application into smaller, modular components. This is particularly useful for larger applications where you want to separate different parts of your application into different files or modules. By using APIRouter, you can keep your codebase organized and make it easier to maintain and extend.\n\nIn summary, the `FastAPI` class is the main entry point for creating a FastAPI application, while the `APIRouter` class is used to group path operations together. The choice between the two depends on whether you need to create the main application instance or organize your application into smaller, modular components.",
+      "context_chunks": [
+        "fastapi/applications.py:42-4768",
+        "fastapi/param_functions.py:2372-2460",
+        "fastapi/applications.py:1435-1638",
+        "fastapi/exceptions.py:161-164",
+        "fastapi/applications.py:1165-1220"
+      ],
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 0.0,
+      "latency_ms": 8499,
+      "intent_correct": true,
+      "error": null
+    },
+    {
+      "question": "why does validation fail when I pass wrong types?",
+      "intent": "debug",
+      "answer": "The validation fails when wrong types are passed because the `Schema` class in FastAPI is designed to validate the type of the input data. If the type of the input data does not match the expected type, a `ValueError` is raised.\n\nFor example, in the test case [test_openapi_schema_type.py:21-24](https://github.com/tiangolo/fastapi/blob/main/tests/test_openapi_schema_type.py#L21), the `Schema` class is instantiated with a boolean value for the `type` parameter, which is not a valid type. This causes the `Schema` class to raise a `ValueError` with the message \"2 validation errors for Schema\".\n\nThe `ValidationException` class in FastAPI is responsible for handling validation errors. It has a method `errors()` that returns a sequence of validation errors [fastapi/exceptions.py:190-191](https://github.com/tiangolo/fastapi/blob/main/fastapi/exceptions.py#L190). The `__str__` method of the `ValidationException` class formats the validation errors into a human-readable string [fastapi/exceptions.py:204-209](https://github.com/tiangolo/fastapi/blob/main/fastapi/exceptions.py#L204).\n\nIn the test case [test_ws_router.py:210-233](https://github.com/tiangolo/fastapi/blob/main/tests/test_ws_router.py#L210), a validation error in a dependency causes a `WebSocketDisconnect` exception with the code `WS_1008_POLICY_VIOLATION`. This indicates that the validation error was handled correctly and did not leak any errors.\n\nTo fix this issue, you should ensure that the type of the input data matches the expected type. If you are using Pydantic models, you can use the `BaseModel` class to define the expected type of the input data. If you are using FastAPI's `Schema` class, you should ensure that the `type` parameter is a valid type.\n\nFor example, the following code snippet shows how to use the `BaseModel` class to define the expected type of the input data:\n\n```python\nfrom pydantic import BaseModel\n\nclass Item(BaseModel):\n    name: str\n    price: float\n\n@app.post(\"/items/\")\nasync def create_item(item: Item):\n    return item\n```\n\nIn this example, the `Item` class is a Pydantic model that defines the expected type of the input data. The `create_item` function uses the `Item` class to validate the input data. If the input data does not match the expected type, a `ValidationError` is raised.",
+      "context_chunks": [
+        "fastapi/exceptions.py:190-191",
+        "tests/test_openapi_schema_type.py:21-24",
+        "tests/test_ws_router.py:210-233",
+        "fastapi/exceptions.py:204-209",
+        "docs_src/dependencies/tutorial008b_an_py310.py:14-15"
+      ],
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 0.4,
+      "latency_ms": 6432,
+      "intent_correct": true,
+      "error": null
+    },
+    {
+      "question": "show me an example of using Depends",
+      "intent": "example",
+      "answer": "Here's an example of using `Depends` in FastAPI, drawn from the retrieved code:\n\n```python\nfrom fastapi import Depends, FastAPI, HTTPException, status\nfrom fastapi.security import OAuth2PasswordBearer\n\napp = FastAPI()\n\noauth2_scheme = OAuth2PasswordBearer(tokenUrl=\"token\")\n\nasync def get_current_user(token: str = Depends(oauth2_scheme)):\n    if token != \"valid-token\":\n        raise HTTPException(\n            status_code=status.HTTP_401_UNAUTHORIZED,\n            detail=\"Invalid authentication credentials\",\n            headers={\"WWW-Authenticate\": \"Bearer\"},\n        )\n    return {\"username\": \"user1\"}\n\n@app.get(\"/users/me\")\nasync def read_users_me(current_user: dict = Depends(get_current_user)):\n    return current_user\n```\n\nIn this example:\n\n1. `Depends` is used to declare a dependency. The `oauth2_scheme` is a dependency that will be resolved before the `get_current_user` function is called. [FileName:StartLine-EndLine](https://github.com/tiangolo/fastapi/blob/main/fastapi/security/oauth2.py#L547)\n\n2. The `get_current_user` function depends on the `oauth2_scheme` dependency. It expects a token string that is provided by the `oauth2_scheme` dependency. [FileName:StartLine-EndLine](https://github.com/tiangolo/fastapi/blob/main/fastapi/dependencies/utils.py#L393)\n\n3. The `read_users_me` endpoint depends on the `get_current_user` function. It expects a dictionary that is returned by the `get_current_user` function. [FileName:StartLine-EndLine](https://github.com/tiangolo/fastapi/blob/main/fastapi/dependencies/utils.py#L393)\n\nThe caller gets back the result of the dependency chain. In this case, the caller gets back the current user dictionary from the `get_current_user` function. If the token is invalid, an HTTPException is raised.",
+      "context_chunks": [
+        "fastapi/security/oauth2.py:547-650",
+        "fastapi/dependencies/utils.py:393-559",
+        "fastapi/applications.py:1020-1068",
+        "fastapi/exceptions.py:167-171",
+        "fastapi/security/http.py:29-66"
+      ],
+      "faithfulness": 0.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 0.0,
+      "latency_ms": 6881,
+      "intent_correct": true,
+      "error": null
+    }
+  ]
+}

@@ -4,19 +4,23 @@ feeding each source file through the chunker.
 
 Design decisions:
   - Shallow clone (depth=1) so we don't pull git history — fast and cheap
+  - Detect the actual default branch post-clone via git so GitHub URLs
+    are correct for repos that use 'master', 'develop', or anything else
   - Skip vendor dirs, test files, and auto-generated code by default
   - Progress bar via tqdm so the user knows it's working
   - Returns a flat list of CodeChunks ready for embedding
 """
 
 import os
-import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
 from git import Repo
+from loguru import logger
 from tqdm import tqdm
 
+from repolens.config import settings
 from repolens.models import CodeChunk, SUPPORTED_LANGUAGES
 from repolens.ingestion.chunker import chunk_file, detect_language
 
@@ -26,9 +30,6 @@ SKIP_DIRS = {
     "env", "dist", "build", ".eggs", "*.egg-info",
     "vendor", "third_party", "fixtures", "migrations",
 }
-
-# Max file size to parse (skip huge auto-generated files)
-MAX_FILE_BYTES = 200_000  # 200 KB
 
 
 def load_repo(github_url: str, clone_dir: str = None) -> tuple[list[CodeChunk], str]:
@@ -54,12 +55,17 @@ def load_repo(github_url: str, clone_dir: str = None) -> tuple[list[CodeChunk], 
     if clone_dir is None:
         clone_dir = tempfile.mkdtemp(prefix=f"repolens_{repo_name}_")
 
-    print(f"\n📦 Cloning {base_url} → {clone_dir}")
+    logger.info(f"Cloning {base_url} → {clone_dir}")
     _clone(url, clone_dir)
 
-    print(f"🔍 Walking files...")
+    # Detect the actual default branch so GitHub blob URLs are always correct.
+    # Falls back to 'main' if detection fails (e.g. bare/empty repos).
+    default_branch = _detect_default_branch(clone_dir)
+    logger.info(f"Default branch: {default_branch}")
+
+    logger.info("Walking files...")
     source_files = _collect_files(clone_dir)
-    print(f"   Found {len(source_files)} supported source files")
+    logger.info(f"Found {len(source_files)} supported source files")
 
     all_chunks: list[CodeChunk] = []
 
@@ -69,36 +75,58 @@ def load_repo(github_url: str, clone_dir: str = None) -> tuple[list[CodeChunk], 
         except Exception:
             continue
 
-        if len(source.encode("utf-8")) > MAX_FILE_BYTES:
+        if len(source.encode("utf-8")) > settings.max_file_bytes:
             continue
-
-        # Make path relative to the repo root for clean display + GitHub URLs
-        rel_path = str(Path(file_path).relative_to(clone_dir))
 
         chunks = chunk_file(
             source=source,
-            file_path=rel_path,
+            file_path=file_path,      # absolute path — chunker strips repo_root
             repo_url=base_url,
-            repo_root=clone_dir,
+            repo_root=clone_dir,      # stripped by _relative_path() in chunker
+            default_branch=default_branch,
         )
         all_chunks.extend(chunks)
 
-    print(f"✅ Extracted {len(all_chunks)} code chunks from {len(source_files)} files\n")
+    logger.info(f"Extracted {len(all_chunks)} code chunks from {len(source_files)} files")
     return all_chunks, clone_dir
 
 
 def _clone(url: str, target: str):
     """Shallow clone — only latest commit, no history."""
     if Path(target).exists() and any(Path(target).iterdir()):
-        print(f"   (already cloned, reusing)")
+        logger.info("Already cloned, reusing")
         return
     Repo.clone_from(url, target, depth=1, single_branch=True)
 
 
+def _detect_default_branch(clone_dir: str) -> str:
+    """
+    Detect the repo's default branch by asking git directly.
+
+    'git rev-parse --abbrev-ref HEAD' returns the current branch name,
+    which after a clone is always the remote's default branch.
+    Falls back to 'main' if the command fails for any reason.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=clone_dir,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        branch = result.stdout.strip()
+        if branch and branch != "HEAD":  # HEAD means detached — shouldn't happen after clone
+            return branch
+    except Exception as e:
+        logger.warning(f"Could not detect default branch, falling back to 'main': {e}")
+    return "main"
+
+
 def _collect_files(root: str) -> list[str]:
     """
-    Walk the repo and return paths of all parseable source files,
-    skipping vendor dirs, test files, and oversized files.
+    Walk the repo and return absolute paths of all parseable source files,
+    skipping vendor dirs and oversized files.
     """
     supported_exts = set(SUPPORTED_LANGUAGES.keys())
     results = []

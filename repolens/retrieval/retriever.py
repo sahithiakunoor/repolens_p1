@@ -37,6 +37,7 @@ Why a cross-encoder rerank on top of RRF:
 
 import json
 
+from loguru import logger
 from sentence_transformers import CrossEncoder
 
 from repolens.config import settings
@@ -44,10 +45,23 @@ from repolens.ingestion.indexer import Indexer
 from repolens.models import CodeChunk, RetrievedChunk
 
 
+# Paths that indicate test/fixture/doc files — ranked below source files
+# when cross-encoder scores are close. Configurable via settings.test_file_penalty.
+_NON_SOURCE_PATTERNS = (
+    "/tests/",
+    "/test_",
+    "test_",
+    "/docs/",
+    "/examples/",
+    "/fixtures/",
+    "/benchmarks/",
+)
+
+
 class HybridRetriever:
     def __init__(self, indexer: Indexer):
         self.indexer = indexer
-        print(f"🧠 Loading reranker: {settings.rerank_model}")
+        logger.info(f"Loading reranker: {settings.rerank_model}")
         self.reranker = CrossEncoder(settings.rerank_model)
 
     # ── Public API ───────────────────────────────────────────────────────────
@@ -133,12 +147,10 @@ class HybridRetriever:
 
         # Apply source file bias: penalize test/fixture/doc files so that
         # source code ranks above test code when scores are close.
-        # The penalty is subtracted from the raw cross-encoder logit score.
-        # We use a modest penalty (1.5) so a clearly better test file can
-        # still outrank a weakly relevant source file — this is a tie-breaker,
-        # not a hard filter.
+        # The penalty comes from settings so it's tunable without code changes.
+        penalty = settings.test_file_penalty
         adjusted_scores = [
-            float(score) - _test_file_penalty(chunk)
+            float(score) - (_test_file_penalty(chunk, penalty))
             for chunk, score in zip(candidates, scores)
         ]
 
@@ -182,31 +194,17 @@ def _contextualize_for_rerank(chunk: CodeChunk) -> str:
     return "\n".join(parts)
 
 
-# Test/fixture/doc paths that should rank below source files when scores are close.
-_NON_SOURCE_PATTERNS = (
-    "/tests/",
-    "/test_",
-    "test_",
-    "/docs/",
-    "/examples/",
-    "/fixtures/",
-    "/benchmarks/",
-)
-
-_TEST_FILE_PENALTY = 1.5   # subtracted from cross-encoder logit score
-
-
-def _test_file_penalty(chunk: CodeChunk) -> float:
+def _test_file_penalty(chunk: CodeChunk, penalty: float) -> float:
     """
     Return a score penalty for chunks from test/doc/example files.
-    Source files get 0 penalty. Test/fixture/doc files get _TEST_FILE_PENALTY.
+    Source files get 0 penalty. Test/fixture/doc files get the configured penalty.
 
     This is a soft bias, not a hard filter — a test file that's genuinely
     the best match for a query (e.g. "show me an example of X") can still
     outrank a weakly relevant source file if its cross-encoder score is
-    more than _TEST_FILE_PENALTY points higher.
+    more than `penalty` points higher.
     """
     path = chunk.file_path.lower()
     if any(pattern in path for pattern in _NON_SOURCE_PATTERNS):
-        return _TEST_FILE_PENALTY
+        return penalty
     return 0.0

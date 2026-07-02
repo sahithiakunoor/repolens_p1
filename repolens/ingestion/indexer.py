@@ -19,38 +19,61 @@ Embedding strategy:
 
 import json
 import pickle
+import re
 from pathlib import Path
 
 import chromadb
-from chromadb.config import Settings
+from chromadb.config import Settings as ChromaSettings
+from loguru import logger
 from sentence_transformers import SentenceTransformer
 from rank_bm25 import BM25Okapi
 from tqdm import tqdm
 
+from repolens.config import settings
 from repolens.models import CodeChunk
 
-# Embedding model — good balance of quality vs speed for code
-# Swap for "voyageai/voyage-code-2" in production for better code understanding
-EMBED_MODEL = "all-MiniLM-L6-v2"
 
-# How many chunks to embed in one batch (controls memory usage)
-BATCH_SIZE = 64
+def _collection_name_from_dir(persist_dir: Path) -> str:
+    """
+    Derive a ChromaDB collection name from the persist directory name.
+
+    persist_dir.name is 'org__repo' (set by _repo_slug in api.py).
+    ChromaDB requires: 3-63 chars, alphanumeric + hyphens/underscores,
+    must start and end with alphanumeric.
+
+    We replace '__' with '-' and strip any non-conforming chars to be safe.
+    """
+    raw = persist_dir.name
+    # Replace double underscore separator with hyphen
+    sanitized = raw.replace("__", "-")
+    # Remove any chars not allowed by ChromaDB
+    sanitized = re.sub(r"[^a-zA-Z0-9_-]", "-", sanitized)
+    # Ensure it starts and ends with alphanumeric
+    sanitized = sanitized.strip("-_")
+    # Clamp to ChromaDB's 3-63 char limit
+    sanitized = sanitized[:63]
+    if len(sanitized) < 3:
+        sanitized = sanitized.ljust(3, "0")
+    return sanitized
 
 
 class Indexer:
-    def __init__(self, persist_dir: str = "./repolens_index"):
+    def __init__(self, persist_dir: str = ".repolens_index/default"):
         self.persist_dir = Path(persist_dir)
         self.persist_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"🧠 Loading embedding model: {EMBED_MODEL}")
-        self.embed_model = SentenceTransformer(EMBED_MODEL)
+        logger.info(f"Loading embedding model: {settings.embed_model}")
+        self.embed_model = SentenceTransformer(settings.embed_model)
+
+        collection_name = _collection_name_from_dir(self.persist_dir)
+        logger.info(f"ChromaDB collection: '{collection_name}'")
 
         self.chroma = chromadb.PersistentClient(
             path=str(self.persist_dir / "chroma"),
-            settings=Settings(anonymized_telemetry=False),
+            settings=ChromaSettings(anonymized_telemetry=False),
         )
         self.collection = self.chroma.get_or_create_collection(
-            name="repolens",
+            name=collection_name,
             metadata={"hnsw:space": "cosine"},
         )
 
@@ -65,13 +88,13 @@ class Indexer:
         """Embed and store chunks in both indexes. Skips already-indexed chunks."""
         new_chunks = self._filter_new(chunks)
         if not new_chunks:
-            print("ℹ️  All chunks already indexed — nothing to do.")
+            logger.info("All chunks already indexed — nothing to do.")
             return
 
-        print(f"📥 Indexing {len(new_chunks)} new chunks...")
+        logger.info(f"Indexing {len(new_chunks)} new chunks...")
         self._index_chroma(new_chunks)
         self._index_bm25(new_chunks)
-        print(f"✅ Index complete. Total chunks: {self.collection.count()}")
+        logger.info(f"Index complete. Total chunks: {self.collection.count()}")
 
     def embed_query(self, query: str) -> list[float]:
         return self.embed_model.encode(query).tolist()
@@ -82,8 +105,9 @@ class Indexer:
     # ── ChromaDB ─────────────────────────────────────────────────────────────
 
     def _index_chroma(self, chunks: list[CodeChunk]) -> None:
-        for i in tqdm(range(0, len(chunks), BATCH_SIZE), desc="Embedding"):
-            batch = chunks[i: i + BATCH_SIZE]
+        batch_size = settings.embed_batch_size
+        for i in tqdm(range(0, len(chunks), batch_size), desc="Embedding"):
+            batch = chunks[i: i + batch_size]
             texts      = [_contextualize(c) for c in batch]
             embeddings = self.embed_model.encode(texts, show_progress_bar=False).tolist()
 
@@ -119,7 +143,7 @@ class Indexer:
                 self.bm25 = pickle.load(f)
             with open(chunks_path, "rb") as f:
                 self.bm25_chunks = pickle.load(f)
-            print(f"📂 Loaded BM25 index ({len(self.bm25_chunks)} chunks)")
+            logger.info(f"Loaded BM25 index ({len(self.bm25_chunks)} chunks)")
 
     def _save_bm25(self) -> None:
         with open(self.persist_dir / "bm25.pkl", "wb") as f:
@@ -159,9 +183,9 @@ def _to_metadata(chunk: CodeChunk) -> dict:
         "language":     chunk.language,
         "start_line":   chunk.start_line,
         "end_line":     chunk.end_line,
-        "docstring":    chunk.docstring[:500] if chunk.docstring else "",
+        "docstring":    chunk.docstring[:settings.max_docstring_chars] if chunk.docstring else "",
         "parent_class": chunk.parent_class,
         "repo_url":     chunk.repo_url,
         "github_url":   chunk.github_url,
-        "imports":      json.dumps(chunk.imports[:10]),  # cap for metadata size
+        "imports":      json.dumps(chunk.imports[:settings.max_imports]),
     }

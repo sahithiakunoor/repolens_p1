@@ -63,7 +63,6 @@ FUNCTION_NODES = {
     "javascript": {"function_declaration", "arrow_function", "method_definition"},
     "typescript": {"function_declaration", "arrow_function", "method_definition"},
     "java":       {"method_declaration", "constructor_declaration"},
-    "go":         {"function_declaration", "method_declaration"},
 }
 
 CLASS_NODES = {
@@ -71,7 +70,6 @@ CLASS_NODES = {
     "javascript": {"class_declaration"},
     "typescript": {"class_declaration"},
     "java":       {"class_declaration", "interface_declaration"},
-    "go":         {"type_declaration"},
 }
 
 DOCSTRING_NODES = {
@@ -79,7 +77,6 @@ DOCSTRING_NODES = {
     "javascript": {"comment"},
     "typescript": {"comment"},
     "java":       {"block_comment"},
-    "go":         {"comment"},
 }
 
 
@@ -96,9 +93,19 @@ def chunk_file(
     file_path: str,
     repo_url: str,
     repo_root: str = "",
+    default_branch: str = "main",
 ) -> list[CodeChunk]:
     """
     Parse a source file and return a list of CodeChunks.
+
+    Args:
+        source:         Raw file contents.
+        file_path:      Absolute or repo-root-relative path to the file.
+        repo_url:       Base GitHub URL (e.g. https://github.com/org/repo).
+        repo_root:      Local path prefix to strip when building the relative
+                        path used in GitHub URLs. E.g. '/tmp/clones/org__repo'.
+        default_branch: The repo's default branch ('main', 'master', etc.).
+                        Used to build accurate GitHub blob URLs.
 
     Falls back to whole-file chunking if:
       - The language is unsupported
@@ -111,15 +118,26 @@ def chunk_file(
     grammar = _get_grammar(language)
     if grammar is None:
         # Language supported in principle but grammar not installed
-        return _fallback_chunk(source, file_path, language, repo_url)
+        return _fallback_chunk(source, file_path, language, repo_url, repo_root, default_branch)
 
     try:
-        return _ast_chunk(source, file_path, language, grammar, repo_url, repo_root)
+        return _ast_chunk(source, file_path, language, grammar, repo_url, repo_root, default_branch)
     except Exception:
-        return _fallback_chunk(source, file_path, language, repo_url)
+        return _fallback_chunk(source, file_path, language, repo_url, repo_root, default_branch)
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
+
+def _relative_path(file_path: str, repo_root: str) -> str:
+    """
+    Strip the local repo_root prefix from file_path to get the path
+    as it appears inside the GitHub repo (used in blob URLs and chunk IDs).
+    """
+    if repo_root and file_path.startswith(repo_root):
+        rel = file_path[len(repo_root):]
+        return rel.lstrip("/")
+    return file_path
+
 
 def _ast_chunk(
     source: str,
@@ -128,10 +146,13 @@ def _ast_chunk(
     grammar: Language,
     repo_url: str,
     repo_root: str,
+    default_branch: str,
 ) -> list[CodeChunk]:
     parser = Parser(grammar)
     tree = parser.parse(bytes(source, "utf-8"))
     lines = source.splitlines()
+
+    rel_path = _relative_path(file_path, repo_root)
 
     # Extract top-level imports once per file
     imports = _extract_imports(tree.root_node, lines, language)
@@ -154,7 +175,7 @@ def _ast_chunk(
                 content=content,
                 chunk_type="class",
                 name=name,
-                file_path=file_path,
+                rel_path=rel_path,
                 language=language,
                 start_line=start + 1,
                 end_line=end + 1,
@@ -162,6 +183,7 @@ def _ast_chunk(
                 parent_class="",
                 imports=imports,
                 repo_url=repo_url,
+                default_branch=default_branch,
             ))
 
             # Visit children so methods inside the class are also extracted
@@ -185,7 +207,7 @@ def _ast_chunk(
                 content=content,
                 chunk_type=chunk_type,
                 name=qualified_name,
-                file_path=file_path,
+                rel_path=rel_path,
                 language=language,
                 start_line=start + 1,
                 end_line=end + 1,
@@ -193,6 +215,7 @@ def _ast_chunk(
                 parent_class=parent_class,
                 imports=imports,
                 repo_url=repo_url,
+                default_branch=default_branch,
             ))
 
         else:
@@ -207,19 +230,24 @@ def _ast_chunk(
 
 
 def _make_chunk(
-    content, chunk_type, name, file_path, language,
-    start_line, end_line, docstring, parent_class, imports, repo_url
+    content, chunk_type, name, rel_path, language,
+    start_line, end_line, docstring, parent_class, imports,
+    repo_url, default_branch,
 ) -> CodeChunk:
-    # Build GitHub URL: strip local prefix to get relative path
-    rel_path = file_path
-    github_url = f"{repo_url.rstrip('/')}/blob/main/{rel_path}#L{start_line}"
-
+    """
+    Build a CodeChunk. rel_path is the repo-relative path (no local prefix),
+    used both for the chunk_id and the GitHub blob URL.
+    """
+    github_url = (
+        f"{repo_url.rstrip('/')}/blob/{default_branch}/{rel_path}"
+        f"#L{start_line}-L{end_line}"
+    )
     return CodeChunk(
-        chunk_id=f"{file_path}::{name}:{start_line}",
+        chunk_id=f"{rel_path}::{name}:{start_line}",
         content=content,
         chunk_type=chunk_type,
         name=name,
-        file_path=file_path,
+        file_path=rel_path,
         language=language,
         start_line=start_line,
         end_line=end_line,
@@ -271,7 +299,6 @@ def _extract_imports(root_node, lines: list[str], language: str) -> list[str]:
         "javascript": {"import_statement"},
         "typescript": {"import_statement"},
         "java":       {"import_declaration"},
-        "go":         {"import_declaration"},
     }
     target_types = import_types.get(language, set())
     imports = []
@@ -288,18 +315,21 @@ def _fallback_chunk(
     file_path: str,
     language: str,
     repo_url: str,
+    repo_root: str,
+    default_branch: str,
 ) -> list[CodeChunk]:
     """
     When AST parsing fails, treat the whole file as a single chunk.
     Better than silently dropping the file.
     """
-    name = Path(file_path).stem
+    rel_path = _relative_path(file_path, repo_root)
+    name = Path(rel_path).stem
     lines = source.splitlines()
     return [_make_chunk(
         content=source,
         chunk_type="module",
         name=name,
-        file_path=file_path,
+        rel_path=rel_path,
         language=language,
         start_line=1,
         end_line=len(lines),
@@ -307,4 +337,5 @@ def _fallback_chunk(
         parent_class="",
         imports=[],
         repo_url=repo_url,
+        default_branch=default_branch,
     )]

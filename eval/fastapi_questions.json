@@ -1,0 +1,22 @@
+[
+    {
+        "question": "how does dependency injection work?",
+        "expected_intent": "explain"
+    },
+    {
+        "question": "where is the routing logic defined?",
+        "expected_intent": "find"
+    },
+    {
+        "question": "difference between APIRouter and FastAPI class?",
+        "expected_intent": "compare"
+    },
+    {
+        "question": "why does validation fail when I pass wrong types?",
+        "expected_intent": "debug"
+    },
+    {
+        "question": "show me an example of using Depends",
+        "expected_intent": "example"
+    }
+]
