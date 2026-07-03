@@ -1,0 +1,103 @@
+{
+  "repo_url": "https://github.com/tiangolo/fastapi",
+  "timestamp": "2026-07-03T07:32:30.209732+00:00",
+  "num_questions": 5,
+  "num_errors": 0,
+  "mean_faithfulness": 0.677,
+  "mean_answer_relevancy": 0.9,
+  "mean_context_precision": 0.36,
+  "mean_latency_ms": 4776.4,
+  "intent_accuracy": 1,
+  "samples": [
+    {
+      "question": "how does dependency injection work?",
+      "intent": "explain",
+      "answer": "Dependency injection in FastAPI allows you to inject dependencies into your route functions, which can be used to modify the request or response objects. This is particularly useful for adding headers, modifying responses, or extracting information from the request.\n\n### High-Level Overview\nDependency injection in FastAPI enables you to inject dependencies into your route functions. These dependencies can be used to modify the request or response objects, add headers, or extract information from the request. The dependencies are resolved and injected by FastAPI before the route function is called.\n\n### Key Implementation Details\n\n1. **Dependency Injection in Route Functions**:\n   - Dependencies can be injected into route functions by using the `Depends` class. The `Depends` class is used to specify that a parameter should be resolved by a dependency.\n   - For example, in [test_response_dependency.py:54-68](https://github.com/tiangolo/fastapi/blob/master/tests/test_response_dependency.py#L54-L68), a `Response` object is injected into the route function, and headers are added to it.\n\n2. **Modifying Response Objects**:\n   - Dependencies can modify the response object before it is sent to the client. This allows you to add headers, set status codes, or modify the response content.\n   - For example, in [test_response_dependency.py:97-121](https://github.com/tiangolo/fastapi/blob/master/tests/test_response_dependency.py#L97-L121), a dependency returns a new `JSONResponse` object with headers set, and the route function modifies the headers before returning the response.\n\n3. **Chaining Dependencies**:\n   - Dependencies can be chained together, where the output of one dependency is used as the input to another dependency.\n   - For example, in [test_response_dependency.py:71-94](https://github.com/tiangolo/fastapi/blob/master/tests/test_response_dependency.py#L71-L94), two dependencies are chained together to modify the response object, with each dependency adding its own headers.\n\n4. **Extracting Request Information**:\n   - Dependencies can extract information from the request object, such as headers or query parameters, and return it as a dictionary or other data structure.\n   - For example, in [test_response_dependency.py:125-145](https://github.com/tiangolo/fastapi/blob/master/tests/test_response_dependency.py#L125-L145), a dependency extracts the path and user agent from the request object and returns it as a dictionary.\n\n### How the Pieces Fit Together\n\n1. **Dependency Resolution**:\n   - When a route function is called, FastAPI resolves the dependencies specified in the function parameters. This involves calling the dependency functions and passing the results to the route function.\n   - For example, in [test_response_dependency.py:54-68](https://github.com/tiangolo/fastapi/blob/master/tests/test_response_dependency.py#L54-L68), the `Response` object is injected into the route function, and headers are added to it before the response is sent to the client.\n\n2. **Modifying Response Objects**:\n   - Dependencies can modify the response object before it is sent to the client. This allows you to add headers, set status codes, or modify the response content.\n   - For example, in [test_response_dependency.py:97-121](https://github.com/tiangolo/fastapi/blob/master/tests/test_response_dependency.py#L97-L121), a dependency returns a new `JSONResponse` object with headers set, and the route function modifies the headers before returning the response.\n\n3. **Chaining Dependencies**:\n   - Dependencies can be chained together, where the output of one dependency is used as the input to another dependency.\n   - For example, in [test_response_dependency.py:71-94](https://github.com/tiangolo/fastapi/blob/master/tests/test_response_dependency.py#L71-L94), two dependencies are chained together to modify the response object, with each dependency adding its own headers.\n\n4. **Extracting Request Information**:\n   - Dependencies can extract information from the request object, such as headers or query parameters, and return it as a dictionary or other data structure.\n   - For example, in [test_response_dependency.py:125-145](https://github.com/tiangolo/fastapi/blob/master/tests/test_response_dependency.py#L125-L145), a dependency extracts the path and user agent from the request object and returns it as a dictionary.\n\nIn summary, dependency injection in FastAPI allows you to inject dependencies into your route functions, which can be used to modify the request or response objects, add headers, or extract information from the request. The dependencies are",
+      "context_chunks": [
+        "tests/test_response_dependency.py:97-121",
+        "tests/test_response_dependency.py:71-94",
+        "tests/test_response_dependency.py:54-68",
+        "tests/test_response_dependency.py:125-145",
+        "fastapi/openapi/docs.py:9-19"
+      ],
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.5,
+      "context_precision": 0.0,
+      "latency_ms": 8209,
+      "intent_correct": true,
+      "error": null
+    },
+    {
+      "question": "where is the routing logic defined?",
+      "intent": "find",
+      "answer": "The routing logic is defined in the `fastapi/routing.py` file, which is not included in the provided code chunks. However, the `include_router` method in `fastapi/applications.py` is used to include an `APIRouter` in the same app, which is part of the routing logic. [fastapi/applications.py:1435-1638](https://github.com/tiangolo/fastapi/blob/master/fastapi/applications.py#L1435-L1638)",
+      "context_chunks": [
+        "fastapi/sse.py:20-33",
+        "fastapi/applications.py:1435-1638",
+        "fastapi/openapi/utils.py:481-486",
+        "fastapi/security/oauth2.py:14-58",
+        "fastapi/security/oauth2.py:162-225"
+      ],
+      "faithfulness": 0.4,
+      "answer_relevancy": 1.0,
+      "context_precision": 0.0,
+      "latency_ms": 2402,
+      "intent_correct": true,
+      "error": null
+    },
+    {
+      "question": "difference between APIRouter and FastAPI class?",
+      "intent": "compare",
+      "answer": "The `FastAPI` class and `APIRouter` are both part of the FastAPI framework, but they serve different purposes and are used in different contexts.\n\n### FastAPI Class\n- **Purpose**: The `FastAPI` class is the main entry point for creating a FastAPI application. It is used to define the root application and handle the overall configuration and routing of the application.\n- **Behavior and Interface**: The `FastAPI` class inherits from `Starlette` and provides additional functionality specific to FastAPI, such as automatic API documentation, data validation, and dependency injection.\n- **Use Case**: You would use the `FastAPI` class to create the main application instance. This is typically done at the root of your application. For example:\n  ```python\n  from fastapi import FastAPI\n\n  app = FastAPI()\n  ```\n  [fastapi/applications.py:42-57](https://github.com/tiangolo/fastapi/blob/master/fastapi/applications.py#L42-L57)\n\n### APIRouter\n- **Purpose**: The `APIRouter` class is used to create modular routers that can be included in the main FastAPI application. It allows you to organize your application into smaller, reusable components.\n- **Behavior and Interface**: The `APIRouter` class provides methods to define routes, dependencies, and other configurations that can be included in the main application. It does not handle the overall application configuration but focuses on routing and sub-application logic.\n- **Use Case**: You would use the `APIRouter` class to create modular routers for different parts of your application. These routers can then be included in the main FastAPI application using the `include_router` method. For example:\n  ```python\n  from fastapi import APIRouter\n\n  router = APIRouter()\n  ```\n  [fastapi/applications.py:1435-1638](https://github.com/tiangolo/fastapi/blob/master/fastapi/applications.py#L1435-L1638)\n\n### Key Differences\n- **Scope**: The `FastAPI` class is used for the entire application, while the `APIRouter` is used for modular components within the application.\n- **Configuration**: The `FastAPI` class handles the overall application configuration, including middleware, exception handlers, and event handlers. The `APIRouter` focuses on routing and sub-application logic.\n- **Inclusion**: The `APIRouter` can be included in the main `FastAPI` application using the `include_router` method, allowing for modular and reusable components.\n\nIn summary, the `FastAPI` class is used to create the main application instance, while the `APIRouter` is used to create modular routers that can be included in the main application. This separation allows for better organization and reusability of code in FastAPI applications.",
+      "context_chunks": [
+        "docs_src/custom_request_and_route/tutorial003_py310.py:8-8",
+        "fastapi/applications.py:42-57",
+        "fastapi/param_functions.py:2372-2460",
+        "fastapi/applications.py:1435-1638",
+        "fastapi/exceptions.py:161-164"
+      ],
+      "faithfulness": 0.35,
+      "answer_relevancy": 1.0,
+      "context_precision": 0.2,
+      "latency_ms": 5967,
+      "intent_correct": true,
+      "error": null
+    },
+    {
+      "question": "why does validation fail when I pass wrong types?",
+      "intent": "debug",
+      "answer": "The validation fails when wrong types are passed because the `Schema` class raises a `ValueError` when an invalid type is provided. This is evident from the test case in [test_openapi_schema_type.py:21-24](https://github.com/tiangolo/fastapi/blob/master/tests/test_openapi_schema_type.py#L21-L24), which shows that passing `True` as the `type` parameter raises a `ValueError` with the message \"2 validation errors for Schema\".\n\nThe `ValidationException` class is a base exception class that is used to handle validation errors. It has an `errors` method that returns a sequence of errors [fastapi/exceptions.py:190-191](https://github.com/tiangolo/fastapi/blob/master/fastapi/exceptions.py#L190-L191). The `RequestValidationError` class inherits from `ValidationException` [fastapi/exceptions.py:212-212](https://github.com/tiangolo/fastapi/blob/master/fastapi/exceptions.py#L212-L212), which is used to handle validation errors in the request.\n\nThe test case in [test_ws_router.py:210-233](https://github.com/tiangolo/fastapi/blob/master/tests/test_ws_router.py#L210-L233) shows that a validation error in a dependency invokes the correct exception handler. This indicates that the validation error is caught and handled properly.\n\nTo fix this issue, you need to ensure that the correct type is passed to the `Schema` class. If you are unsure about the type, you can use the `isinstance` function to check the type before passing it to the `Schema` class. Here is an example:\n\n```python\nfrom fastapi import Schema\n\ndef validate_type(value):\n    if not isinstance(value, str):\n        raise ValueError(\"Invalid type. Expected a string.\")\n    return value\n\nschema = Schema(type=validate_type(\"test\"))\n```",
+      "context_chunks": [
+        "fastapi/exceptions.py:190-191",
+        "fastapi/exceptions.py:174-174",
+        "tests/test_openapi_schema_type.py:21-24",
+        "tests/test_ws_router.py:210-233",
+        "fastapi/exceptions.py:212-212"
+      ],
+      "faithfulness": 0.778,
+      "answer_relevancy": 1.0,
+      "context_precision": 0.6,
+      "latency_ms": 4381,
+      "intent_correct": true,
+      "error": null
+    },
+    {
+      "question": "show me an example of using Depends",
+      "intent": "example",
+      "answer": "Here's a concrete example of using `Depends` with `HTTPBearer` from the retrieved code:\n\n```python\nfrom typing import Annotated\n\nfrom fastapi import Depends, FastAPI\nfrom fastapi.security import HTTPAuthorizationCredentials, HTTPBearer\n\napp = FastAPI()\n\nsecurity = HTTPBearer()\n\n@app.get(\"/users/me\")\ndef read_current_user(\n    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]\n):\n    return {\"scheme\": credentials.scheme, \"credentials\": credentials.credentials}\n```\n\nIn this example:\n- `security = HTTPBearer()` creates an instance of the `HTTPBearer` class.\n- `Depends(security)` is used as a dependency in the route function.\n- The `credentials` parameter is annotated with `Annotated[HTTPAuthorizationCredentials, Depends(security)]`, which tells FastAPI to use the `security` dependency to get the `HTTPAuthorizationCredentials` object.\n- The caller gets back an `HTTPAuthorizationCredentials` object containing the `scheme` and the `credentials`.\n\n[FileName:222-253](https://github.com/tiangolo/fastapi/blob/master/fastapi/security/http.py#L222-L253)",
+      "context_chunks": [
+        "fastapi/security/http.py:222-253",
+        "fastapi/security/http.py:105-139",
+        "fastapi/security/api_key.py:235-266",
+        "fastapi/security/api_key.py:147-178",
+        "fastapi/security/api_key.py:55-86"
+      ],
+      "faithfulness": 0.857,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "latency_ms": 2923,
+      "intent_correct": true,
+      "error": null
+    }
+  ]
+}

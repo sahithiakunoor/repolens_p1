@@ -202,13 +202,13 @@ from repolens.retrieval.retriever import _test_file_penalty
 def test_test_file_gets_penalty():
     chunk = make_chunk("a")
     chunk.file_path = "tests/test_routing.py"
-    assert _test_file_penalty(chunk) == 1.5
+    assert _test_file_penalty(chunk, 1.5) == 1.5
 
 
 def test_source_file_gets_no_penalty():
     chunk = make_chunk("a")
     chunk.file_path = "src/routing.py"
-    assert _test_file_penalty(chunk) == 0.0
+    assert _test_file_penalty(chunk, 1.5) == 0.0
 
 
 def test_rerank_source_file_outranks_test_file_with_equal_scores(retriever):
