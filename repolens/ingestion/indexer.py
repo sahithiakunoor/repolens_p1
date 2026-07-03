@@ -64,7 +64,16 @@ class Indexer:
         self.persist_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info(f"Loading embedding model: {settings.embed_model}")
-        self.embed_model = SentenceTransformer(settings.embed_model)
+        self.embed_model = SentenceTransformer(
+            settings.embed_model,
+            trust_remote_code=settings.embed_trust_remote_code,
+        )
+
+        # Cap sequence length to bound attention memory. Long-context models
+        # (e.g. jina v2 @ 8192) can otherwise try to allocate enormous
+        # attention buffers on a single long chunk. 0 = keep model default.
+        if settings.embed_max_seq_length > 0:
+            self.embed_model.max_seq_length = settings.embed_max_seq_length
 
         collection_name = _collection_name_from_dir(self.persist_dir)
         logger.info(f"ChromaDB collection: '{collection_name}'")
@@ -98,7 +107,7 @@ class Indexer:
         logger.info(f"Index complete. Total chunks: {self.collection.count()}")
 
     def embed_query(self, query: str) -> list[float]:
-        return self.embed_model.encode(query).tolist()
+        return self.embed_model.encode(settings.embed_query_prefix + query).tolist()
 
     def count(self) -> int:
         return self.collection.count()
@@ -109,7 +118,7 @@ class Indexer:
         batch_size = settings.embed_batch_size
         for i in tqdm(range(0, len(chunks), batch_size), desc="Embedding"):
             batch = chunks[i: i + batch_size]
-            texts      = [contextualize_chunk(c) for c in batch]
+            texts      = [settings.embed_doc_prefix + contextualize_chunk(c) for c in batch]
             embeddings = self.embed_model.encode(texts, show_progress_bar=False).tolist()
 
             self.collection.add(

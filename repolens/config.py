@@ -56,6 +56,25 @@ class Settings:
     # How many chunks to embed in one batch (controls memory vs. speed tradeoff)
     embed_batch_size: int = int(os.getenv("EMBED_BATCH_SIZE", 64))
 
+    # Some code-aware models (jina-embeddings-v2-base-code, nomic-embed-text)
+    # ship custom model code and require trust_remote_code to load.
+    embed_trust_remote_code: bool = os.getenv("EMBED_TRUST_REMOTE_CODE", "false").lower() == "true"
+
+    # Asymmetric embedding models (nomic, e5, bge) need a prefix on queries vs
+    # documents to hit their retrieval quality — e.g. nomic wants
+    # "search_query: " and "search_document: ". Symmetric models like
+    # all-MiniLM-L6-v2 use no prefix (the empty-string defaults below), so this
+    # is fully backward compatible.
+    embed_query_prefix: str = os.getenv("EMBED_QUERY_PREFIX", "")
+    embed_doc_prefix: str = os.getenv("EMBED_DOC_PREFIX", "")
+
+    # Cap the embedding model's max sequence length. Long-context models like
+    # jina-embeddings-v2 default to 8192 tokens, but attention memory grows
+    # with the SQUARE of sequence length — an over-long chunk can try to
+    # allocate tens of GB. Code chunks rarely need more than ~512 tokens, so
+    # we cap it. 0 = leave the model default untouched.
+    embed_max_seq_length: int = int(os.getenv("EMBED_MAX_SEQ_LENGTH", 512))
+
     # ── Reranker ──────────────────────────────────────────────────────────────
     # Free cross-encoder, runs locally
     rerank_model: str = os.getenv("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L6-v2")
