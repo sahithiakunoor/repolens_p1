@@ -168,8 +168,25 @@ def _ast_chunk(
             name = _node_name(node, lines)
             start = node.start_point[0]
             end   = node.end_point[0]
-            content = "\n".join(lines[start:end + 1])
             docstring = _extract_docstring(node, lines, language)
+
+            # Find where the class's methods begin. We emit a compact "header"
+            # chunk covering the class signature, docstring, and any class-level
+            # attributes — but NOT the method bodies, which are chunked
+            # separately below. This avoids duplicating the entire class body
+            # into one giant, semantically-meaningless chunk (a 4000-line class
+            # would otherwise embed to a useless averaged vector and get
+            # truncated by the cross-encoder at rerank time).
+            first_method_line = _first_child_def_line(node, fn_types)
+
+            if first_method_line is not None:
+                header_end = first_method_line - 1
+                content = "\n".join(lines[start:header_end + 1])
+                chunk_end_line = header_end + 1
+            else:
+                # No methods — a small class (e.g. a dataclass). Keep it whole.
+                content = "\n".join(lines[start:end + 1])
+                chunk_end_line = end + 1
 
             chunks.append(_make_chunk(
                 content=content,
@@ -178,7 +195,7 @@ def _ast_chunk(
                 rel_path=rel_path,
                 language=language,
                 start_line=start + 1,
-                end_line=end + 1,
+                end_line=chunk_end_line,
                 docstring=docstring,
                 parent_class="",
                 imports=imports,
@@ -257,6 +274,40 @@ def _make_chunk(
         repo_url=repo_url,
         github_url=github_url,
     )
+
+
+def _first_child_def_line(class_node, fn_types: set) -> int | None:
+    """
+    Return the 0-indexed start line of the first method/function defined
+    directly inside a class body, or None if the class has no methods.
+
+    Used to bound the class "header" chunk so it stops before the method
+    bodies (which are chunked separately). We search the class's block/body
+    node for the earliest function-definition child.
+    """
+    # Find the body node (the indented block under the class)
+    body = None
+    for child in class_node.children:
+        if child.type in {"block", "class_body", "declaration_list"}:
+            body = child
+            break
+    if body is None:
+        return None
+
+    earliest = None
+    for child in body.children:
+        if child.type in fn_types:
+            line = child.start_point[0]
+            if earliest is None or line < earliest:
+                earliest = line
+        # Handle decorated methods: the decorator wraps the function node
+        if child.type == "decorated_definition":
+            for inner in child.children:
+                if inner.type in fn_types:
+                    line = child.start_point[0]  # include the decorator line
+                    if earliest is None or line < earliest:
+                        earliest = line
+    return earliest
 
 
 def _node_name(node, lines: list[str]) -> str:

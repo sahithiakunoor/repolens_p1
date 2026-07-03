@@ -31,6 +31,7 @@ from tqdm import tqdm
 
 from repolens.config import settings
 from repolens.models import CodeChunk
+from repolens.chunk_text import contextualize_chunk, tokenize_code
 
 
 def _collection_name_from_dir(persist_dir: Path) -> str:
@@ -108,7 +109,7 @@ class Indexer:
         batch_size = settings.embed_batch_size
         for i in tqdm(range(0, len(chunks), batch_size), desc="Embedding"):
             batch = chunks[i: i + batch_size]
-            texts      = [_contextualize(c) for c in batch]
+            texts      = [contextualize_chunk(c) for c in batch]
             embeddings = self.embed_model.encode(texts, show_progress_bar=False).tolist()
 
             self.collection.add(
@@ -131,7 +132,7 @@ class Indexer:
 
     def _index_bm25(self, chunks: list[CodeChunk]) -> None:
         self.bm25_chunks.extend(chunks)
-        corpus = [_bm25_text(c).split() for c in self.bm25_chunks]
+        corpus = [tokenize_code(_bm25_text(c)) for c in self.bm25_chunks]
         self.bm25 = BM25Okapi(corpus)
         self._save_bm25()
 
@@ -154,16 +155,6 @@ class Indexer:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _contextualize(chunk: CodeChunk) -> str:
-    """
-    Build the text that gets embedded.
-    Leading with name + docstring gives semantic signal beyond raw syntax.
-    """
-    parts = [f"{chunk.chunk_type} {chunk.name}"]
-    if chunk.docstring:
-        parts.append(chunk.docstring)
-    parts.append(chunk.content)
-    return "\n".join(parts)
 
 
 def _bm25_text(chunk: CodeChunk) -> str:

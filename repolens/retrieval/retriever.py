@@ -43,6 +43,7 @@ from sentence_transformers import CrossEncoder
 from repolens.config import settings
 from repolens.ingestion.indexer import Indexer
 from repolens.models import CodeChunk, RetrievedChunk
+from repolens.chunk_text import contextualize_chunk, tokenize_code
 
 
 # Paths that indicate test/fixture/doc files — ranked below source files
@@ -108,7 +109,7 @@ class HybridRetriever:
     def _sparse_search(self, query: str, top_k: int) -> list[CodeChunk]:
         if self.indexer.bm25 is None or not self.indexer.bm25_chunks:
             return []
-        tokenized_query = query.lower().split()
+        tokenized_query = tokenize_code(query)
         scores = self.indexer.bm25.get_scores(tokenized_query)
         ranked_indices = sorted(
             range(len(scores)), key=lambda i: scores[i], reverse=True
@@ -142,7 +143,7 @@ class HybridRetriever:
         if not candidates:
             return []
 
-        pairs = [(query, _contextualize_for_rerank(chunk)) for chunk in candidates]
+        pairs = [(query, contextualize_chunk(chunk)) for chunk in candidates]
         scores = self.reranker.predict(pairs)
 
         # Apply source file bias: penalize test/fixture/doc files so that
@@ -184,14 +185,6 @@ def _chunk_from_chroma(chunk_id: str, metadata: dict, document: str) -> CodeChun
     )
 
 
-def _contextualize_for_rerank(chunk: CodeChunk) -> str:
-    """Same contextualization idea as the indexer: lead with name + docstring
-    so the cross-encoder gets semantic signal beyond raw syntax."""
-    parts = [f"{chunk.chunk_type} {chunk.name}"]
-    if chunk.docstring:
-        parts.append(chunk.docstring)
-    parts.append(chunk.content)
-    return "\n".join(parts)
 
 
 def _test_file_penalty(chunk: CodeChunk, penalty: float) -> float:
