@@ -89,7 +89,7 @@ class Settings:
     clone_dir: Path = Path(os.getenv("CLONE_DIR", ".repolens_repos"))
 
     # ── Ingestion ─────────────────────────────────────────────────────────────
-    max_file_bytes:      int = int(os.getenv("MAX_FILE_BYTES", 200_000))
+    max_file_bytes:      int = int(os.getenv("MAX_FILE_BYTES", 1_000_000))
     # Metadata size caps — ChromaDB stores metadata as strings; keep them bounded
     max_imports:         int = int(os.getenv("MAX_IMPORTS", 10))
     max_docstring_chars: int = int(os.getenv("MAX_DOCSTRING_CHARS", 500))

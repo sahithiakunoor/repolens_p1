@@ -171,7 +171,12 @@ def _bm25_text(chunk: CodeChunk) -> str:
     Text for BM25 keyword index — emphasises symbol names
     by repeating them so exact-match queries rank them highly.
     """
-    return f"{chunk.name} {chunk.name} {chunk.docstring} {chunk.content}"
+    # Include the file path so filename tokens (e.g. "routing" from
+    # fastapi/routing.py) are matchable by keyword search. This is the
+    # decisive signal for "where is X defined?" queries, where the query
+    # term often matches the filename but not the in-code identifiers
+    # (which use "route"/"router", not "routing").
+    return f"{chunk.file_path} {chunk.name} {chunk.name} {chunk.docstring} {chunk.content}"
 
 
 def _to_metadata(chunk: CodeChunk) -> dict:

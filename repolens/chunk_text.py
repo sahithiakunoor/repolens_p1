@@ -33,7 +33,11 @@ def contextualize_chunk(chunk: CodeChunk) -> str:
       - Indexer._index_chroma  (the text that gets embedded)
       - HybridRetriever._rerank (the text the cross-encoder scores)
     """
-    parts = [f"{chunk.chunk_type} {chunk.name}"]
+    # Lead with the file path so "where is X defined?" style queries can
+    # match on the filename (e.g. "routing" -> fastapi/routing.py). Without
+    # this, the single strongest signal for locate-queries is invisible to
+    # both the embedding model and the cross-encoder reranker.
+    parts = [f"{chunk.file_path} {chunk.chunk_type} {chunk.name}"]
     if chunk.docstring:
         parts.append(chunk.docstring)
     parts.append(chunk.content)
